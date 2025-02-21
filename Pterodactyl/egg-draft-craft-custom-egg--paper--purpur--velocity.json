@@ -1,0 +1,90 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2025-02-21T11:48:16+01:00",
+    "name": "DraftCraft Custom Egg (Paper, Purpur, Velocity)",
+    "author": "parker@pterodactyl.io",
+    "description": "High performance Minecraft Server fork that aims to fix gameplay and mechanics inconsistencies.",
+    "features": [
+        "eula",
+        "java_version",
+        "pid_limit"
+    ],
+    "docker_images": {
+        "Java 21": "ghcr.io\/pterodactyl\/yolks:java_21",
+        "Java 17": "ghcr.io\/pterodactyl\/yolks:java_17",
+        "Java 16": "ghcr.io\/pterodactyl\/yolks:java_16",
+        "Java 11": "ghcr.io\/pterodactyl\/yolks:java_11",
+        "Java 8": "ghcr.io\/pterodactyl\/yolks:java_8"
+    },
+    "file_denylist": [],
+    "startup": "bash <(curl -sSL https:\/\/raw.githubusercontent.com\/Cyage\/Egg\/refs\/heads\/main\/Pterodactyl\/Start\/start.sh)",
+    "config": {
+        "files": "{\r\n    \"server.properties\": {\r\n        \"parser\": \"properties\",\r\n        \"find\": {\r\n            \"server-ip\": \"0.0.0.0\",\r\n            \"server-port\": \"{{server.build.default.port}}\",\r\n            \"query.port\": \"{{server.build.default.port}}\"\r\n        }\r\n    },\r\n    \"velocity.toml\": {\r\n        \"parser\": \"toml\",\r\n        \"find\": {\r\n            \"bind\": \"\\\"0.0.0.0:{{server.build.default.port}}\\\"\"\r\n        }\r\n    }\r\n}",
+        "startup": "{\r\n    \"done\": \")! For help, type \"\r\n}",
+        "logs": "{}",
+        "stop": "stop"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!\/bin\/ash\r\n# Minecraft Server Installation Script\r\n# Supports: PaperMC, PurpurMC, Velocity\r\n\r\n# Server Files: \/mnt\/server\r\n\r\nif [ -z \"$SOFTWARE\" ]; then\r\n    echo \"No software specified. Defaulting to PaperMC.\"\r\n    SOFTWARE=\"paper\"\r\nfi\r\n\r\nif [ -n \"${DL_PATH}\" ]; then\r\n    echo -e \"Using supplied download URL: ${DL_PATH}\"\r\n    DOWNLOAD_URL=`eval echo $(echo ${DL_PATH} | sed -e 's\/{{\/${\/g' -e 's\/}}\/}\/g')`\r\nelse\r\n    case \"$SOFTWARE\" in\r\n        \"paper\")\r\n            PROJECT=\"paper\"\r\n            ;;\r\n        \"purpur\")\r\n            PROJECT=\"purpur\"\r\n            ;;\r\n        \"velocity\")\r\n            PROJECT=\"velocity\"\r\n            ;;\r\n        *)\r\n            echo \"Invalid software selection. Defaulting to PaperMC.\"\r\n            PROJECT=\"paper\"\r\n            ;;\r\n    esac\r\n\r\n    VER_EXISTS=`curl -s https:\/\/api.papermc.io\/v2\/projects\/${PROJECT} | jq -r --arg VERSION $MINECRAFT_VERSION '.versions[] | contains($VERSION)' | grep -m1 true`\r\n    LATEST_VERSION=`curl -s https:\/\/api.papermc.io\/v2\/projects\/${PROJECT} | jq -r '.versions' | jq -r '.[-1]'`\r\n\r\n    if [ \"${VER_EXISTS}\" == \"true\" ]; then\r\n        echo -e \"Version is valid. Using version ${MINECRAFT_VERSION}\"\r\n    else\r\n        echo -e \"Specified version not found. Defaulting to the latest ${PROJECT} version\"\r\n        MINECRAFT_VERSION=${LATEST_VERSION}\r\n    fi\r\n\r\n    BUILD_EXISTS=`curl -s https:\/\/api.papermc.io\/v2\/projects\/${PROJECT}\/versions\/${MINECRAFT_VERSION} | jq -r --arg BUILD ${BUILD_NUMBER} '.builds[] | tostring | contains($BUILD)' | grep -m1 true`\r\n    LATEST_BUILD=`curl -s https:\/\/api.papermc.io\/v2\/projects\/${PROJECT}\/versions\/${MINECRAFT_VERSION} | jq -r '.builds' | jq -r '.[-1]'`\r\n\r\n    if [ \"${BUILD_EXISTS}\" == \"true\" ]; then\r\n        echo -e \"Build is valid for version ${MINECRAFT_VERSION}. Using build ${BUILD_NUMBER}\"\r\n    else\r\n        echo -e \"Using the latest ${PROJECT} build for version ${MINECRAFT_VERSION}\"\r\n        BUILD_NUMBER=${LATEST_BUILD}\r\n    fi\r\n\r\n    DOWNLOAD_URL=https:\/\/api.papermc.io\/v2\/projects\/${PROJECT}\/versions\/${MINECRAFT_VERSION}\/builds\/${BUILD_NUMBER}\/downloads\/server.jar\r\nfi\r\n\r\ncd \/mnt\/server\r\n\r\nif [ -f server.jar ]; then\r\n    mv server.jar server.jar.old\r\nfi\r\n\r\ncurl -o server.jar ${DOWNLOAD_URL}\r\n\r\n# Auto-install plugins only for PaperMC and PurpurMC (1.20.5 - 1.21.4)\r\nVERSION_NUM=$(echo ${MINECRAFT_VERSION} | sed 's\/[^0-9.]\/\/g' | awk -F. '{printf \"%d%02d%02d\", $1, $2, $3}')\r\nMIN_VERSION=$(echo \"1.20.5\" | sed 's\/[^0-9.]\/\/g' | awk -F. '{printf \"%d%02d%02d\", $1, $2, $3}')\r\nMAX_VERSION=$(echo \"1.21.4\" | sed 's\/[^0-9.]\/\/g' | awk -F. '{printf \"%d%02d%02d\", $1, $2, $3}')\r\n\r\nif [ \"$SOFTWARE\" = \"paper\" ] || [ \"$SOFTWARE\" = \"purpur\" ]; then\r\n    if [ \"${VERSION_NUM}\" -ge \"${MIN_VERSION}\" ] && [ \"${VERSION_NUM}\" -le \"${MAX_VERSION}\" ]; then\r\n        echo \"Installing plugins for ${SOFTWARE}.\"\r\n        mkdir -p plugins\r\n        curl -o plugins\/ViaVersion.jar https:\/\/cdn.modrinth.com\/data\/P1OZGk5p\/versions\/p5sXOzZW\/ViaVersion-5.2.1.jar\r\n        curl -o plugins\/ViaBackwards.jar https:\/\/cdn.modrinth.com\/data\/NpvuJQoq\/versions\/bprnc7WS\/ViaBackwards-5.2.1.jar\r\n        curl -sSL -L -o plugins\/Geyser-Spigot.jar https:\/\/download.geysermc.org\/v2\/projects\/geyser\/versions\/latest\/builds\/latest\/downloads\/spigot\r\n        curl -o plugins\/Chunky.jar https:\/\/cdn.modrinth.com\/data\/fALzjamp\/versions\/ytBhnGfO\/Chunky-Bukkit-1.4.28.jar\r\n        curl -o plugins\/WorldEdit.jar https:\/\/cdn.modrinth.com\/data\/1u6JkXh5\/versions\/Bu1zaaoc\/worldedit-bukkit-7.3.9.jar\r\n        curl -o plugins\/LagFixer.jar https:\/\/cdn.modrinth.com\/data\/fD1X4Kwd\/versions\/HXeQqEBF\/LagFixer.jar\r\n        \r\n        if [ ! -f server.properties ]; then\r\n            echo -e \"Downloading MC server.properties\"\r\n            curl -o server.properties https:\/\/raw.githubusercontent.com\/parkervcp\/eggs\/master\/minecraft\/java\/server.properties\r\n        fi\r\n        \r\n        GEYSER_FOLDER=\"plugins\/Geyser-Spigot\"\r\n        GEYSER_CONFIG=\"${GEYSER_FOLDER}\/config.yml\"\r\n\r\n        mkdir -p ${GEYSER_FOLDER}\r\n\r\n        echo -e \"Downloading default GeyserMC config.yml\"\r\n        curl -o ${GEYSER_CONFIG} https:\/\/raw.githubusercontent.com\/GeyserMC\/Geyser\/refs\/heads\/master\/core\/src\/main\/resources\/config.yml\r\n\r\n        echo -e \"Modifying GeyserMC config.yml for Bedrock and remote settings\"\r\n        sed -i \"s\/^\\(\\s*address:\\).*\/\\1 0.0.0.0\/\" ${GEYSER_CONFIG}\r\n        sed -i \"s\/^\\(\\s*port:\\).*\/\\1 ${SERVER_PORT}\/\" ${GEYSER_CONFIG}\r\n        \r\n    else\r\n        echo \"Skipping plugin installation for ${SOFTWARE} due to incompatible version.\"\r\n    fi\r\nfi\r\n\r\necho \"Installation complete for ${SOFTWARE}.\"",
+            "container": "ghcr.io\/pterodactyl\/installers:alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Minecraft Version",
+            "description": "The version of minecraft to download. \r\n\r\nLeave at latest to always get the latest version. Invalid versions will default to latest.",
+            "env_variable": "MINECRAFT_VERSION",
+            "default_value": "latest",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Server Jar File",
+            "description": "The name of the server jarfile to run the server with.",
+            "env_variable": "SERVER_JARFILE",
+            "default_value": "server.jar",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|regex:\/^([\\w\\d._-]+)(\\.jar)$\/",
+            "field_type": "text"
+        },
+        {
+            "name": "Download Path",
+            "description": "A URL to use to download a server.jar rather than the ones in the install script. This is not user viewable.",
+            "env_variable": "DL_PATH",
+            "default_value": "",
+            "user_viewable": false,
+            "user_editable": false,
+            "rules": "nullable|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Build Number",
+            "description": "The build number for the paper release.\r\n\r\nLeave at latest to always get the latest version. Invalid versions will default to latest.",
+            "env_variable": "BUILD_NUMBER",
+            "default_value": "latest",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        },
+        {
+            "name": "Minecraft Software",
+            "description": "",
+            "env_variable": "SOFTWARE",
+            "default_value": "paper",
+            "user_viewable": false,
+            "user_editable": true,
+            "rules": "required|string|max:20",
+            "field_type": "text"
+        }
+    ]
+}
